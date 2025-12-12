@@ -12,13 +12,19 @@ fi
 # Ensure storage and cache directories are writable
 chmod -R 777 /app/storage /app/bootstrap/cache
 
-# Clear Laravel caches
+# Clear caches and run migrations
 php artisan config:clear
 php artisan cache:clear
-
-# Run migrations (force to avoid prompt)
 php artisan migrate --force
 
-# Start Laravel server on Railway port
+# Get Railway-assigned port (fallback to 8000)
 PORT=${PORT:-8000}
-exec php artisan serve --host=0.0.0.0 --port=$PORT
+
+# Replace Nginx listen port dynamically
+sed -i "s/listen 8000;/listen ${PORT};/" /etc/nginx/sites-available/default
+
+# Start PHP-FPM
+php-fpm -D
+
+# Start Nginx in foreground
+nginx -g "daemon off;"

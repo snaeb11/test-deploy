@@ -1,5 +1,4 @@
-# ----------- Stage 1: Build ----------- #
-FROM php:8.4-fpm AS build
+FROM php:8.4-fpm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -7,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     libfreetype6-dev libjpeg62-turbo-dev libpng-dev libzip-dev \
     zip unzip git curl sqlite3 libsqlite3-dev \
-    nodejs npm \
+    nodejs npm nginx \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
@@ -21,52 +20,29 @@ WORKDIR /app
 
 # Copy composer files first for caching
 COPY composer.json composer.lock ./
-
-# Install PHP dependencies without scripts
 RUN composer install --optimize-autoloader --no-dev --no-interaction --no-scripts
 
-# Copy full project
+# Copy project files
 COPY . .
 
-# Run Laravel package discovery
+# Laravel package discovery
 RUN php artisan package:discover --ansi
 
-# Ensure directories exist and are writable
+# Ensure directories exist
 RUN mkdir -p /app/database /app/storage /app/bootstrap/cache
 RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
 
-# Install Node.js dependencies and build assets
+# Node.js build
 RUN npm install && npm run build
 
-# ----------- Stage 2: Production ----------- #
-FROM php:8.4-fpm
+# Copy Nginx config
+COPY nginx.conf /etc/nginx/sites-available/default
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install PHP extensions required at runtime
-RUN apt-get update && apt-get install -y \
-    libfreetype6-dev libjpeg62-turbo-dev libpng-dev libzip-dev \
-    zip unzip sqlite3 libsqlite3-dev \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql pdo_sqlite zip
-
-WORKDIR /app
-
-# Copy built app from build stage
-COPY --from=build /app /app
-
-# Ensure directories exist and writable
-RUN mkdir -p /app/database /app/storage /app/bootstrap/cache
-RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
-
-# Copy entrypoint script
+# Copy entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Expose container port (optional)
+# Expose (dummy) port, actual port is dynamic
 EXPOSE 8000
 
-# Use entrypoint
 ENTRYPOINT ["docker-entrypoint.sh"]
