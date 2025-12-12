@@ -1,7 +1,6 @@
 # ----------- Stage 1: Build ----------- #
 FROM php:8.4-fpm AS build
 
-# Prevent interactive prompts during apt-get install
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies
@@ -18,7 +17,6 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Set working directory
 WORKDIR /app
 
 # Copy composer files first for caching
@@ -30,11 +28,11 @@ RUN composer install --optimize-autoloader --no-dev --no-interaction --no-script
 # Copy full project
 COPY . .
 
-# Run Laravel-specific post-autoload scripts now that artisan exists
+# Run Laravel package discovery
 RUN php artisan package:discover --ansi
 
-# Ensure SQLite file exists and set permissions
-RUN mkdir -p /app/database && touch /app/database/database.sqlite
+# Ensure storage and cache directories exist
+RUN mkdir -p /app/database /app/storage /app/bootstrap/cache
 RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
 
 # Install Node.js dependencies and build assets
@@ -43,7 +41,6 @@ RUN npm install && npm run build
 # ----------- Stage 2: Production ----------- #
 FROM php:8.4-fpm
 
-# Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install PHP extensions required at runtime
@@ -55,18 +52,21 @@ RUN apt-get update && apt-get install -y \
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql pdo_sqlite zip
 
-# Set working directory
 WORKDIR /app
 
 # Copy built app from build stage
 COPY --from=build /app /app
 
-# Ensure SQLite file exists and set permissions
-RUN touch /app/database/database.sqlite \
-    && chmod 777 /app/database/database.sqlite
+# Ensure directories exist
+RUN mkdir -p /app/database /app/storage /app/bootstrap/cache
+RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
 
-# Expose Laravel default port
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Expose port
 EXPOSE 8000
 
-# Start Laravel server
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# Use entrypoint
+ENTRYPOINT ["docker-entrypoint.sh"]
