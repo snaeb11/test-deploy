@@ -6,16 +6,19 @@ DB_FILE=/app/database/database.sqlite
 if [ ! -f "$DB_FILE" ]; then
     mkdir -p /app/database
     touch "$DB_FILE"
-    chmod 777 "$DB_FILE"
+    chmod -R 777 /app/database
 fi
 
-# Clear Laravel caches and run migrations
+# Ensure storage and cache directories are writable
+chmod -R 777 /app/storage /app/bootstrap/cache
+
+# Clear Laravel caches
 php artisan config:clear
 php artisan cache:clear
+
+# Run migrations (force to avoid prompt)
 php artisan migrate --force
 
-# Use Railway-assigned port or fallback to 8000
+# Start Laravel server on Railway port
 PORT=${PORT:-8000}
-
-# Start Laravel server
 exec php artisan serve --host=0.0.0.0 --port=$PORT

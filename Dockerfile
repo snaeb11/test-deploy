@@ -22,7 +22,7 @@ WORKDIR /app
 # Copy composer files first for caching
 COPY composer.json composer.lock ./
 
-# Install PHP dependencies without running scripts yet
+# Install PHP dependencies without scripts
 RUN composer install --optimize-autoloader --no-dev --no-interaction --no-scripts
 
 # Copy full project
@@ -31,7 +31,7 @@ COPY . .
 # Run Laravel package discovery
 RUN php artisan package:discover --ansi
 
-# Ensure storage and cache directories exist
+# Ensure directories exist and are writable
 RUN mkdir -p /app/database /app/storage /app/bootstrap/cache
 RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
 
@@ -57,7 +57,7 @@ WORKDIR /app
 # Copy built app from build stage
 COPY --from=build /app /app
 
-# Ensure directories exist
+# Ensure directories exist and writable
 RUN mkdir -p /app/database /app/storage /app/bootstrap/cache
 RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
 
@@ -65,7 +65,7 @@ RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Expose container port (optional, Railway will use $PORT)
+# Expose container port (optional)
 EXPOSE 8000
 
 # Use entrypoint
