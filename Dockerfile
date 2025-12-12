@@ -21,19 +21,20 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 # Set working directory
 WORKDIR /app
 
-# Copy composer files first (for caching)
+# Copy composer files first for caching
 COPY composer.json composer.lock ./
 
-# Install PHP dependencies
-RUN composer install --optimize-autoloader --no-dev --no-interaction
+# Install PHP dependencies without running scripts yet
+RUN composer install --optimize-autoloader --no-dev --no-interaction --no-scripts
 
 # Copy full project
 COPY . .
 
-# Ensure SQLite file exists
-RUN mkdir -p /app/database && touch /app/database/database.sqlite
+# Run Laravel-specific post-autoload scripts now that artisan exists
+RUN php artisan package:discover --ansi
 
-# Set permissions
+# Ensure SQLite file exists and set permissions
+RUN mkdir -p /app/database && touch /app/database/database.sqlite
 RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
 
 # Install Node.js dependencies and build assets
@@ -42,7 +43,7 @@ RUN npm install && npm run build
 # ----------- Stage 2: Production ----------- #
 FROM php:8.4-fpm
 
-# Non-interactive
+# Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install PHP extensions required at runtime
@@ -57,7 +58,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 # Set working directory
 WORKDIR /app
 
-# Copy built app and dependencies from build stage
+# Copy built app from build stage
 COPY --from=build /app /app
 
 # Ensure SQLite file exists and set permissions
