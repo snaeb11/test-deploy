@@ -24,11 +24,14 @@ WORKDIR /app
 # Copy composer files first (for caching)
 COPY composer.json composer.lock ./
 
-# Install PHP dependencies
-RUN composer install --optimize-autoloader --no-dev --no-interaction
+# Install PHP dependencies without running scripts
+RUN composer install --optimize-autoloader --no-dev --no-scripts --no-interaction
 
 # Copy full project
 COPY . .
+
+# Run post-autoload scripts now that artisan exists
+RUN composer run-script post-autoload-dump
 
 # Install Node.js dependencies and build assets
 RUN npm install && npm run build
