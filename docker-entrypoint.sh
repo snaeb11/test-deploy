@@ -7,20 +7,16 @@ if [ ! -f "$DB_FILE" ]; then
     mkdir -p /app/database
     touch "$DB_FILE"
     chmod -R 777 /app/database
+
+    # Run migrations only if database is empty
+    php artisan migrate --force
 fi
 
-# Ensure storage and cache directories are writable
+# Ensure storage/cache are writable
 chmod -R 777 /app/storage /app/bootstrap/cache
 
-# Clear caches and run migrations
-php artisan config:clear
-php artisan cache:clear
-php artisan migrate --force
-
-# Get Railway-assigned port (fallback to 8000)
+# Replace Nginx port with Railway's $PORT
 PORT=${PORT:-8000}
-
-# Replace Nginx listen port dynamically
 sed -i "s/listen 8000;/listen ${PORT};/" /etc/nginx/sites-available/default
 
 # Start PHP-FPM

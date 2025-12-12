@@ -18,7 +18,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 
 WORKDIR /app
 
-# Copy composer files first for caching
+# Copy composer files for caching
 COPY composer.json composer.lock ./
 RUN composer install --optimize-autoloader --no-dev --no-interaction --no-scripts
 
@@ -42,7 +42,7 @@ COPY nginx.conf /etc/nginx/sites-available/default
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Expose (dummy) port, actual port is dynamic
+# Expose dummy port (Railway uses $PORT)
 EXPOSE 8000
 
 ENTRYPOINT ["docker-entrypoint.sh"]
