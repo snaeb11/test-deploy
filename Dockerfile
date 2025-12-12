@@ -6,8 +6,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    libfreetype6-dev libjpeg62-turbo-dev libpng-dev \
-    libzip-dev zip unzip git curl sqlite3 libsqlite3-dev \
+    libfreetype6-dev libjpeg62-turbo-dev libpng-dev libzip-dev \
+    zip unzip git curl sqlite3 libsqlite3-dev \
     nodejs npm \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -24,14 +24,17 @@ WORKDIR /app
 # Copy composer files first (for caching)
 COPY composer.json composer.lock ./
 
-# Install PHP dependencies without running scripts
-RUN composer install --optimize-autoloader --no-dev --no-scripts --no-interaction
+# Install PHP dependencies
+RUN composer install --optimize-autoloader --no-dev --no-interaction
 
 # Copy full project
 COPY . .
 
-# Run post-autoload scripts now that artisan exists
-RUN composer run-script post-autoload-dump
+# Ensure SQLite file exists
+RUN mkdir -p /app/database && touch /app/database/database.sqlite
+
+# Set permissions
+RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
 
 # Install Node.js dependencies and build assets
 RUN npm install && npm run build
@@ -44,7 +47,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install PHP extensions required at runtime
 RUN apt-get update && apt-get install -y \
-    libfreetype6-dev libjpeg62-turbo-dev libpng-dev libzip-dev zip unzip sqlite3 libsqlite3-dev \
+    libfreetype6-dev libjpeg62-turbo-dev libpng-dev libzip-dev \
+    zip unzip sqlite3 libsqlite3-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -55,6 +59,10 @@ WORKDIR /app
 
 # Copy built app and dependencies from build stage
 COPY --from=build /app /app
+
+# Ensure SQLite file exists and set permissions
+RUN mkdir -p /app/database && touch /app/database/database.sqlite
+RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
 
 # Expose Laravel default port
 EXPOSE 8000
