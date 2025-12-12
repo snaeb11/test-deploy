@@ -65,7 +65,7 @@ RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Expose port
+# Expose container port (optional, Railway will use $PORT)
 EXPOSE 8000
 
 # Use entrypoint

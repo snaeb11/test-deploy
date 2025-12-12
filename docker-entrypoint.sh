@@ -9,10 +9,13 @@ if [ ! -f "$DB_FILE" ]; then
     chmod 777 "$DB_FILE"
 fi
 
-# Clear config cache and run migrations
+# Clear Laravel caches and run migrations
 php artisan config:clear
 php artisan cache:clear
 php artisan migrate --force
 
+# Use Railway-assigned port or fallback to 8000
+PORT=${PORT:-8000}
+
 # Start Laravel server
-exec php artisan serve --host=0.0.0.0 --port=8000
+exec php artisan serve --host=0.0.0.0 --port=$PORT
