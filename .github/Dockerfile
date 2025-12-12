@@ -1,35 +1,34 @@
-# Use the official PHP 8.3 image with Apache (or FPM)
-FROM php:8.3-apache
+# Use PHP 8.4 CLI image
+FROM php:8.4-cli
 
-# Install system dependencies required for PHP extensions
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    zip \
-    unzip \
-    git \
-    curl
+    libpng-dev libjpeg-dev libfreetype6-dev \
+    zip unzip git curl sqlite3 libsqlite3-dev \
+    nodejs npm
 
-# Install PHP GD extension
+# Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd
+    && docker-php-ext-install gd pdo pdo_mysql pdo_sqlite
 
-# Enable other common PHP extensions if needed
-RUN docker-php-ext-install pdo pdo_mysql
+# Install Composer globally
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Set working directory
-WORKDIR /var/www/html
+WORKDIR /app
 
-# Copy application files
+# Copy project files
 COPY . .
 
-# Install Composer dependencies
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Install PHP dependencies
 RUN composer install --optimize-autoloader --no-interaction
 
-# Expose port
-EXPOSE 80
+# Install Node dependencies & build assets
+RUN npm install
+RUN npm run build
 
-# Start Apache
-CMD ["apache2-foreground"]
+# Expose Laravel port
+EXPOSE 8000
+
+# Set entrypoint to serve Laravel app
+CMD php artisan serve --host=0.0.0.0 --port=8000
