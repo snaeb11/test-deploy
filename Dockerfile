@@ -62,8 +62,8 @@ WORKDIR /app
 COPY --from=build /app /app
 
 # Ensure SQLite file exists and set permissions
-RUN touch /database/database.sqlite \
-    && chmod 777 /database/database.sqlite
+RUN touch /app/database/database.sqlite \
+    && chmod 777 /app/database/database.sqlite
 
 # Expose Laravel default port
 EXPOSE 8000
