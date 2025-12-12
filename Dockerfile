@@ -1,12 +1,15 @@
 # ----------- Stage 1: Build ----------- #
 FROM php:8.4-fpm AS build
 
+# Prevent interactive prompts during apt-get install
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     libfreetype6-dev libjpeg62-turbo-dev libpng-dev \
-    zip unzip git curl sqlite3 libsqlite3-dev \
-    nodejs npm && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    libzip-dev zip unzip git curl sqlite3 libsqlite3-dev \
+    nodejs npm \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -18,8 +21,10 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 # Set working directory
 WORKDIR /app
 
-# Copy composer files and install dependencies first (cache optimization)
+# Copy composer files first (for caching)
 COPY composer.json composer.lock ./
+
+# Install PHP dependencies
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 
 # Copy full project
@@ -31,9 +36,12 @@ RUN npm install && npm run build
 # ----------- Stage 2: Production ----------- #
 FROM php:8.4-fpm
 
-# Install only PHP extensions required at runtime
+# Non-interactive
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install PHP extensions required at runtime
 RUN apt-get update && apt-get install -y \
-    libfreetype6-dev libjpeg62-turbo-dev libpng-dev zip unzip sqlite3 libsqlite3-dev \
+    libfreetype6-dev libjpeg62-turbo-dev libpng-dev libzip-dev zip unzip sqlite3 libsqlite3-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -42,10 +50,10 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 # Set working directory
 WORKDIR /app
 
-# Copy PHP dependencies and built assets from build stage
+# Copy built app and dependencies from build stage
 COPY --from=build /app /app
 
-# Expose port
+# Expose Laravel default port
 EXPOSE 8000
 
 # Start Laravel server
