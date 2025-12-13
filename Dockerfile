@@ -1,48 +1,26 @@
-FROM php:8.4-cli
+FROM richarvey/nginx-php-fpm:latest
 
-ENV DEBIAN_FRONTEND=noninteractive
+# Enable composer as root
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# System dependencies
-RUN apt-get update && apt-get install -y \
-    git curl zip unzip \
-    sqlite3 libsqlite3-dev \
-    libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
-    nodejs npm \
-    && rm -rf /var/lib/apt/lists/*
+# Laravel environment
+ENV APP_ENV=production
+ENV APP_DEBUG=false
+ENV LOG_CHANNEL=stderr
 
-# PHP extensions (GD MUST be configured before install)
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install \
-        gd \
-        pdo \
-        pdo_mysql \
-        pdo_sqlite
+# Nginx / Laravel config
+ENV WEBROOT=/var/www/html/public
+ENV PHP_ERRORS_STDERR=1
+ENV RUN_SCRIPTS=1
+ENV REAL_IP_HEADER=1
 
-# Composer
-RUN curl -sS https://getcomposer.org/installer | php \
-    -- --install-dir=/usr/local/bin --filename=composer
+# Copy app
+COPY . /var/www/html
 
-WORKDIR /app
+# Install Node (for Vite / Laravel Mix)
+RUN apk add --no-cache nodejs npm
 
-# Copy composer files first
-COPY composer.json composer.lock ./
-
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-# Copy application
-COPY . .
-
-# Frontend build
+# Install frontend assets
 RUN npm install && npm run build
 
-# Laravel directories
-RUN mkdir -p database storage bootstrap/cache \
-    && chmod -R 777 database storage bootstrap/cache
-
-# SQLite file (safe even if unused)
-RUN touch database/database.sqlite
-
-# Start Laravel
-CMD php artisan serve --host=0.0.0.0 --port=${PORT}
+CMD ["/start.sh"]
