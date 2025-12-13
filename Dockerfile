@@ -36,6 +36,9 @@ RUN mkdir -p storage bootstrap/cache database \
 # Install Node dependencies and build frontend
 RUN npm install && npm run build
 
+# Configure PHP-FPM to listen on TCP (more reliable than Unix socket)
+RUN sed -i 's/listen = .*/listen = 127.0.0.1:9000/' /usr/local/etc/php-fpm.d/www.conf
+
 # Copy Nginx configuration
 COPY nginx.conf /etc/nginx/sites-available/default
 RUN rm -f /etc/nginx/sites-enabled/default \
