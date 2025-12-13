@@ -1,26 +1,20 @@
-FROM richarvey/nginx-php-fpm:latest
+FROM php:8.2-fpm-alpine
 
-# Enable composer as root
-ENV COMPOSER_ALLOW_SUPERUSER=1
+RUN apk update && apk add --no-cache \
+    git unzip zip curl nodejs npm sqlite sqlite-dev \
+    libpng-dev libjpeg-turbo-dev freetype-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-freetype \
+    && docker-php-ext-install gd pdo pdo_mysql pdo_sqlite zip
 
-# Laravel environment
-ENV APP_ENV=production
-ENV APP_DEBUG=false
-ENV LOG_CHANNEL=stderr
+WORKDIR /var/www/html
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+COPY . .
 
-# Nginx / Laravel config
-ENV WEBROOT=/var/www/html/public
-ENV PHP_ERRORS_STDERR=1
-ENV RUN_SCRIPTS=1
-ENV REAL_IP_HEADER=1
+RUN mkdir -p storage bootstrap/cache database \
+    && chmod -R 775 storage bootstrap/cache database
 
-# Copy app
-COPY . /var/www/html
-
-# Install Node (for Vite / Laravel Mix)
-RUN apk add --no-cache nodejs npm
-
-# Install frontend assets
 RUN npm install && npm run build
 
-CMD ["/start.sh"]
+EXPOSE 80
+CMD ["php-fpm"]
