@@ -18,12 +18,15 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 # Set working directory
 WORKDIR /app
 
-# Copy composer files first and install dependencies
+# Copy composer files first and install dependencies (skip scripts since artisan isn't available yet)
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 
 # Copy the rest of the application
 COPY . .
+
+# Make artisan executable and run composer scripts that require artisan
+RUN chmod +x artisan && composer dump-autoload --optimize --no-interaction
 
 # Setup storage, cache, and database
 RUN mkdir -p storage bootstrap/cache database \
