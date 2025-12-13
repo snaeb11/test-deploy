@@ -1,48 +1,39 @@
-FROM php:8.4-fpm
+FROM php:8.4-cli
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    libfreetype6-dev libjpeg62-turbo-dev libpng-dev libzip-dev \
-    zip unzip git curl sqlite3 libsqlite3-dev \
-    nodejs npm nginx \
+    git curl zip unzip sqlite3 libsqlite3-dev \
+    nodejs npm \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql pdo_sqlite zip
+RUN docker-php-ext-install pdo pdo_mysql pdo_sqlite
 
 # Install Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+RUN curl -sS https://getcomposer.org/installer | php -- \
+    --install-dir=/usr/local/bin \
+    --filename=composer
 
 WORKDIR /app
 
-# Copy composer files for caching
+# Copy composer files first (better caching)
 COPY composer.json composer.lock ./
-RUN composer install --optimize-autoloader --no-dev --no-interaction --no-scripts
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Copy project files
+# Copy application files
 COPY . .
 
-# Laravel package discovery
-RUN php artisan package:discover --ansi
-
-# Ensure directories exist
-RUN mkdir -p /app/database /app/storage /app/bootstrap/cache
-RUN chmod -R 777 /app/database /app/storage /app/bootstrap/cache
-
-# Node.js build
+# Build frontend assets
 RUN npm install && npm run build
 
-# Copy Nginx config
-COPY nginx.conf /etc/nginx/sites-available/default
+# Ensure required directories exist
+RUN mkdir -p database storage bootstrap/cache \
+    && chmod -R 777 database storage bootstrap/cache
 
-# Copy entrypoint
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Create SQLite DB if missing (safe even if unused)
+RUN touch database/database.sqlite
 
-# Expose dummy port (Railway uses $PORT)
-EXPOSE 8000
-
-ENTRYPOINT ["docker-entrypoint.sh"]
+# Railway uses $PORT automatically
+CMD php artisan serve --host=0.0.0.0 --port=${PORT}

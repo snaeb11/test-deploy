@@ -238,3 +238,6 @@ Route::get('/check', [CheckController::class, 'showRegistrationForm'])->name('ch
 
 // nyehehehehe
 Route::get('/inventory/{id}/download', [InventoryController::class, 'download'])->name('inventory.download');
+
+Route::get('/health', fn () => 'OK');
+
